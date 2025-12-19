@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -54,20 +55,22 @@ export class CommentsController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/approve')
-  approve(@Param('id') id: string, @Request() req) {
+  async approve(@Param('id') id: string, @Request() req) {
     // Only admin/editor can approve
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'EDITOR') {
-      throw new Error('Unauthorized');
+    const userRole = req.user?.role?.toUpperCase();
+    if (userRole !== 'ADMIN' && userRole !== 'EDITOR') {
+      throw new ForbiddenException('Only admins and editors can approve comments');
     }
     return this.commentsService.approve(+id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/reject')
-  reject(@Param('id') id: string, @Request() req) {
+  async reject(@Param('id') id: string, @Request() req) {
     // Only admin/editor can reject
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'EDITOR') {
-      throw new Error('Unauthorized');
+    const userRole = req.user?.role?.toUpperCase();
+    if (userRole !== 'ADMIN' && userRole !== 'EDITOR') {
+      throw new ForbiddenException('Only admins and editors can reject comments');
     }
     return this.commentsService.reject(+id);
   }

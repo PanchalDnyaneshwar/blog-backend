@@ -188,18 +188,55 @@ export class CommentsService {
   }
 
   async approve(id: number) {
+    // Check if comment exists
+    const existingComment = await this.prisma.comment.findUnique({
+      where: { id },
+    });
+
+    if (!existingComment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    // Update comment to approved
     const comment = await this.prisma.comment.update({
       where: { id },
       data: { approved: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        post: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+      },
     });
 
     return {
       success: true,
       data: comment,
+      message: 'Comment approved successfully',
     };
   }
 
   async reject(id: number) {
+    // Check if comment exists
+    const existingComment = await this.prisma.comment.findUnique({
+      where: { id },
+    });
+
+    if (!existingComment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    // Delete the comment
     await this.prisma.comment.delete({
       where: { id },
     });
