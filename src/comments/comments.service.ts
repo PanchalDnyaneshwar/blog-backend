@@ -8,10 +8,13 @@ export class CommentsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCommentDto: CreateCommentDto, userId: number) {
+    // Auto-approve comments for now (can be changed to require moderation)
+    // Set approved: true to show comments immediately
     const comment = await this.prisma.comment.create({
       data: {
         ...createCommentDto,
         userId,
+        approved: true, // Auto-approve comments
       },
       include: {
         user: {
