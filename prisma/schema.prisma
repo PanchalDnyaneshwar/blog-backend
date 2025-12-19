@@ -1,0 +1,246 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Seed script configuration
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts         Post[]
+  comments      Comment[]
+  bookmarks     Bookmark[]
+  progress      UserProgress[]
+  readingHistory ReadingHistory[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  EDITOR
+}
+
+// Admin User Model (separate for admin panel)
+model AdminUser {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String
+  password  String
+  role      AdminRole @default(ADMIN)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("admin_users")
+}
+
+enum AdminRole {
+  ADMIN
+  EDITOR
+}
+
+// Category Model (with hierarchy support)
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
+  parentId    Int?     @map("parent_id")
+  orderIndex  Int      @default(0) @map("order_index")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+  posts    Post[]
+
+  @@index([slug])
+  @@index([parentId])
+  @@map("categories")
+}
+
+// Tag Model
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  posts Post[]
+
+  @@index([slug])
+  @@map("tags")
+}
+
+// Post Model
+model Post {
+  id              Int       @id @default(autoincrement())
+  title           String
+  slug            String    @unique
+  excerpt         String?   @db.Text
+  content         String    @db.Text
+  featuredImage   String?   @map("featured_image")
+  categoryId      Int?      @map("category_id")
+  authorId        Int?      @map("author_id")
+  published       Boolean   @default(false)
+  views           Int       @default(0)
+  readingTime     Int       @default(0) @map("reading_time")
+  metaTitle       String?   @map("meta_title")
+  metaDescription String?   @map("meta_description") @db.Text
+  metaKeywords    String?   @map("meta_keywords")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  publishedAt     DateTime? @map("published_at")
+
+  category  Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  author    User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  tags           Tag[]
+  comments       Comment[]
+  bookmarks      Bookmark[]
+  readingHistory ReadingHistory[]
+
+  @@index([slug])
+  @@index([published])
+  @@index([categoryId])
+  @@index([publishedAt])
+  @@map("posts")
+}
+
+// Comment Model
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String   @db.Text
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  parentId  Int?     @map("parent_id")
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// Bookmark Model
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  postId    Int      @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("bookmarks")
+}
+
+// User Progress Model (for tutorials/lessons)
+model UserProgress {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  tutorialId      Int?      @map("tutorial_id")
+  lessonId        Int?      @map("lesson_id")
+  progressPercent Int       @default(0) @map("progress_percent")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_progress")
+}
+
+// Tutorial Model
+model Tutorial {
+  id            Int        @id @default(autoincrement())
+  title         String
+  slug          String     @unique
+  description   String?    @db.Text
+  difficulty    Difficulty @default(BEGINNER)
+  estimatedTime Int        @default(0) @map("estimated_time")
+  introContent  String?    @map("intro_content") @db.Text
+  published     Boolean    @default(false)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  lessons Lesson[]
+
+  @@index([slug])
+  @@index([difficulty])
+  @@index([published])
+  @@map("tutorials")
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+// Lesson Model
+model Lesson {
+  id            Int      @id @default(autoincrement())
+  tutorialId    Int      @map("tutorial_id")
+  title         String
+  slug          String
+  content       Json // Structured content blocks as JSON
+  orderIndex    Int      @default(0) @map("order_index")
+  estimatedTime Int      @default(0) @map("estimated_time")
+  metadata      Json? // Additional metadata
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tutorial Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+
+  @@unique([tutorialId, slug])
+  @@index([tutorialId])
+  @@index([tutorialId, orderIndex])
+  @@map("lessons")
+}
+
+// Reading History Model (for blog posts)
+model ReadingHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  postId    Int      @map("post_id")
+  progress  Float    @default(0) // 0-100 percentage
+  lastRead  DateTime @default(now()) @map("last_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@index([lastRead])
+  @@map("reading_history")
+}
