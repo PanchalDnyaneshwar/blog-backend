@@ -12,6 +12,8 @@ import { CommentsModule } from './comments/comments.module';
 import { ReadingHistoryModule } from './reading-history/reading-history.module';
 import { CommonModule } from './common/common.module';
 import { SettingsModule } from './settings/settings.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { MediaModule } from './media/media.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -29,10 +31,12 @@ import { AppController } from './app.controller';
     BookmarksModule,
     CategoriesModule,
     TagsModule,
-    CommentsModule,
-    ReadingHistoryModule,
-    SettingsModule,
-  ],
+        CommentsModule,
+        ReadingHistoryModule,
+        SettingsModule,
+        AnalyticsModule,
+        MediaModule,
+      ],
   controllers: [AppController],
 })
 export class AppModule {}
