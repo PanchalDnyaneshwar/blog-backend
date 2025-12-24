@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { SanitizeService } from '../common/services/sanitize.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 
@@ -9,6 +10,7 @@ export class BlogService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private sanitizeService: SanitizeService,
   ) {}
 
   async findAll(query: {
@@ -260,9 +262,19 @@ export class BlogService {
   async create(createPostDto: CreatePostDto, authorId: number) {
     const { tagIds, ...postData } = createPostDto;
     
+    // Sanitize HTML content (rich text editor content)
+    const sanitizedData = {
+      ...postData,
+      content: this.sanitizeService.sanitizeRichText(postData.content),
+      excerpt: postData.excerpt ? this.sanitizeService.sanitizeText(postData.excerpt) : undefined,
+      metaTitle: postData.metaTitle ? this.sanitizeService.sanitizeText(postData.metaTitle) : undefined,
+      metaDescription: postData.metaDescription ? this.sanitizeService.sanitizeText(postData.metaDescription) : undefined,
+      metaKeywords: postData.metaKeywords ? this.sanitizeService.sanitizeText(postData.metaKeywords) : undefined,
+    };
+    
     const post = await this.prisma.post.create({
       data: {
-        ...postData,
+        ...sanitizedData,
         authorId,
         publishedAt: createPostDto.published ? new Date() : null,
         tags: tagIds ? {
@@ -300,10 +312,28 @@ export class BlogService {
       select: { slug: true },
     });
     
+    // Sanitize HTML content if being updated
     const updateData: any = {
       ...postData,
       publishedAt: updatePostDto.published ? new Date() : undefined,
     };
+
+    // Sanitize content fields if they're being updated
+    if (updateData.content) {
+      updateData.content = this.sanitizeService.sanitizeRichText(updateData.content);
+    }
+    if (updateData.excerpt) {
+      updateData.excerpt = this.sanitizeService.sanitizeText(updateData.excerpt);
+    }
+    if (updateData.metaTitle) {
+      updateData.metaTitle = this.sanitizeService.sanitizeText(updateData.metaTitle);
+    }
+    if (updateData.metaDescription) {
+      updateData.metaDescription = this.sanitizeService.sanitizeText(updateData.metaDescription);
+    }
+    if (updateData.metaKeywords) {
+      updateData.metaKeywords = this.sanitizeService.sanitizeText(updateData.metaKeywords);
+    }
 
     if (tagIds !== undefined) {
       // Replace all tags with new ones

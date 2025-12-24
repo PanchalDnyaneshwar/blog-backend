@@ -1,18 +1,26 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SanitizeService } from '../common/services/sanitize.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 
 @Injectable()
 export class CommentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sanitizeService: SanitizeService,
+  ) {}
 
   async create(createCommentDto: CreateCommentDto, userId: number) {
+    // Sanitize HTML content to prevent XSS attacks
+    const sanitizedContent = this.sanitizeService.sanitizeHtml(createCommentDto.content);
+    
     // Auto-approve comments for now (can be changed to require moderation)
     // Set approved: true to show comments immediately
     const comment = await this.prisma.comment.create({
       data: {
         ...createCommentDto,
+        content: sanitizedContent,
         userId,
         approved: true, // Auto-approve comments
       },
@@ -143,9 +151,15 @@ export class CommentsService {
       throw new ForbiddenException('You can only update your own comments');
     }
 
+    // Sanitize HTML content if content is being updated
+    const updateData: any = { ...updateCommentDto };
+    if (updateCommentDto.content) {
+      updateData.content = this.sanitizeService.sanitizeHtml(updateCommentDto.content);
+    }
+
     const updated = await this.prisma.comment.update({
       where: { id },
-      data: updateCommentDto,
+      data: updateData,
       include: {
         user: {
           select: {
