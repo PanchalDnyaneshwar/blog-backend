@@ -45,14 +45,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('✅ Redis connected');
     });
 
-    this.client.on('error', (err) => {
+    this.client.on('error', (err: any) => {
       this.isConnected = false;
       // Only log first error to avoid spam
       if (!this.errorLogged) {
-        if (err.message.includes('ECONNREFUSED')) {
-          this.logger.warn('Redis not available - continuing without cache. Install Redis for better performance.');
+        const errorMessage = err?.message || err?.toString() || 'Unknown error';
+        const errorCode = err?.code;
+        
+        if (errorCode === 'ECONNREFUSED' || errorMessage.includes('ECONNREFUSED')) {
+          this.logger.warn('⚠️  Redis not available - continuing without cache. App will work normally, but caching is disabled. To enable: Install Redis or set REDIS_ENABLED=false in .env');
         } else {
-          this.logger.warn(`Redis error: ${err.message}`);
+          this.logger.warn(`⚠️  Redis error: ${errorMessage}. Continuing without cache.`);
         }
         this.errorLogged = true;
       }
@@ -69,9 +72,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     
     try {
       await this.client.connect();
-    } catch (err) {
+    } catch (err: any) {
       if (!this.errorLogged) {
-        this.logger.warn('Redis not available - continuing without cache. Install Redis for better performance.');
+        const errorMessage = err?.message || err?.toString() || 'Connection failed';
+        if (errorMessage.includes('ECONNREFUSED') || err?.code === 'ECONNREFUSED') {
+          this.logger.warn('⚠️  Redis not available - continuing without cache. App will work normally, but caching is disabled. To enable: Install Redis or set REDIS_ENABLED=false in .env');
+        } else {
+          this.logger.warn(`⚠️  Redis connection failed: ${errorMessage}. Continuing without cache.`);
+        }
         this.errorLogged = true;
       }
       this.isConnected = false;

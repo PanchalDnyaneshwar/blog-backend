@@ -14,13 +14,18 @@ datasource db {
 
 // User Model
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  role      UserRole @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  name              String
+  password          String
+  role              UserRole  @default(USER)
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  emailVerifyToken  String?   @map("email_verify_token")
+  emailVerifyExpiry DateTime? @map("email_verify_expiry")
+  resetToken        String?   @map("reset_token")
+  resetTokenExpiry  DateTime? @map("reset_token_expiry")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   posts         Post[]
   comments      Comment[]
@@ -243,4 +248,23 @@ model ReadingHistory {
   @@index([postId])
   @@index([lastRead])
   @@map("reading_history")
+}
+
+// Settings Model
+model Settings {
+  id                   Int      @id @default(autoincrement())
+  siteTitle            String   @default("Tech Blog") @map("site_title")
+  siteDescription      String?  @map("site_description")
+  siteUrl              String?  @map("site_url")
+  adminEmail           String?  @map("admin_email")
+  defaultMetaTitle     String?  @map("default_meta_title")
+  defaultMetaDescription String? @map("default_meta_description") @db.Text
+  twitterHandle        String?  @map("twitter_handle")
+  facebookPage         String?  @map("facebook_page")
+  githubUrl            String?  @map("github_url")
+  theme                String   @default("light")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
 }

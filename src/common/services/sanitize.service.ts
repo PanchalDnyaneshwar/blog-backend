@@ -1,17 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import DOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
+import sanitizeHtml from 'sanitize-html';
 
 @Injectable()
 export class SanitizeService {
-  private DOMPurify: typeof DOMPurify;
-
-  constructor() {
-    // Create a JSDOM window for DOMPurify to work in Node.js
-    const window = new JSDOM('').window;
-    this.DOMPurify = (DOMPurify as any)(window as any);
-  }
-
   /**
    * Sanitize HTML content to prevent XSS attacks
    * Allows safe HTML tags but removes dangerous scripts and attributes
@@ -19,17 +10,21 @@ export class SanitizeService {
   sanitizeHtml(dirty: string): string {
     if (!dirty) return '';
 
-    return this.DOMPurify.sanitize(dirty, {
-      ALLOWED_TAGS: [
+    return sanitizeHtml(dirty, {
+      allowedTags: [
         'p', 'br', 'strong', 'em', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'img',
         'table', 'thead', 'tbody', 'tr', 'th', 'td',
       ],
-      ALLOWED_ATTR: [
-        'href', 'title', 'alt', 'src', 'width', 'height', 'class',
-      ],
-      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-      KEEP_CONTENT: true,
+      allowedAttributes: {
+        'a': ['href', 'title'],
+        'img': ['src', 'alt', 'width', 'height', 'title'],
+        '*': ['class'],
+      },
+      allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+      allowedSchemesByTag: {
+        img: ['http', 'https', 'data'],
+      },
     });
   }
 
@@ -40,9 +35,9 @@ export class SanitizeService {
   sanitizeText(dirty: string): string {
     if (!dirty) return '';
 
-    return this.DOMPurify.sanitize(dirty, {
-      ALLOWED_TAGS: [],
-      KEEP_CONTENT: true,
+    return sanitizeHtml(dirty, {
+      allowedTags: [],
+      allowedAttributes: {},
     });
   }
 
@@ -53,20 +48,31 @@ export class SanitizeService {
   sanitizeRichText(dirty: string): string {
     if (!dirty) return '';
 
-    return this.DOMPurify.sanitize(dirty, {
-      ALLOWED_TAGS: [
+    return sanitizeHtml(dirty, {
+      allowedTags: [
         'p', 'br', 'strong', 'em', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'img',
         'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span',
         'sub', 'sup', 'del', 'ins', 'mark',
       ],
-      ALLOWED_ATTR: [
-        'href', 'title', 'alt', 'src', 'width', 'height', 'class', 'id',
-        'style', 'data-*',
-      ],
-      ALLOW_DATA_ATTR: true,
-      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-      KEEP_CONTENT: true,
+      allowedAttributes: {
+        'a': ['href', 'title', 'class', 'id'],
+        'img': ['src', 'alt', 'width', 'height', 'title', 'class', 'id'],
+        'div': ['class', 'id', 'style'],
+        'span': ['class', 'id', 'style'],
+        '*': ['class', 'id', 'data-*'],
+      },
+      allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+      allowedSchemesByTag: {
+        img: ['http', 'https', 'data'],
+      },
+      allowedStyles: {
+        '*': {
+          'color': [/^#[0-9a-fA-F]{6}$/, /^rgb\(/, /^rgba\(/],
+          'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
+          'font-size': [/^\d+(?:px|em|rem|%)$/],
+        },
+      },
     });
   }
 }

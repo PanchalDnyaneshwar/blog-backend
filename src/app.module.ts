@@ -15,6 +15,8 @@ import { CommonModule } from './common/common.module';
 import { SettingsModule } from './settings/settings.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MediaModule } from './media/media.module';
+import { EmailModule } from './email/email.module';
+import { TutorialsModule } from './tutorials/tutorials.module';
 import { AppController } from './app.controller';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
@@ -39,6 +41,8 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
         SettingsModule,
         AnalyticsModule,
         MediaModule,
+        EmailModule,
+        TutorialsModule,
       ],
   controllers: [AppController],
   providers: [
