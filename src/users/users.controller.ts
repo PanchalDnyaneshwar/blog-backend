@@ -1,21 +1,55 @@
-import { Controller, Get, Param, Delete, Query, UseGuards, Request, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Delete,
+  Patch,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+  Res,
+  ParseIntPipe,
+  BadRequestException,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(RateLimitGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   findAll(@Query() query: any) {
     return this.usersService.findAll(query);
   }
 
+  @Get('profile/:id')
+  @RateLimit(100, 60)
+  getPublicProfile(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getPublicProfile(id);
+  }
+
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
+  }
+
+  @Patch('me/profile')
+  @UseGuards(JwtAuthGuard)
+  @RateLimit(10, 60)
+  updateMyProfile(@Request() req: any, @Body() updateProfileDto: UpdateProfileDto) {
+    const userId = req.user.userId || req.user.id;
+    if (!userId) {
+      throw new BadRequestException('User ID not found in token');
+    }
+    return this.usersService.updateProfile(userId, updateProfileDto);
   }
 
   @Delete(':id')

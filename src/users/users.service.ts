@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -62,6 +63,148 @@ export class UsersService {
     return {
       success: true,
       data: user,
+    };
+  }
+
+  /**
+   * Get public profile (without sensitive data)
+   */
+  async getPublicProfile(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        bio: true,
+        avatar: true,
+        website: true,
+        github: true,
+        twitter: true,
+        linkedin: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Get user statistics
+    const stats = await this.getUserStatistics(id);
+
+    return {
+      success: true,
+      data: {
+        ...user,
+        stats,
+      },
+    };
+  }
+
+  /**
+   * Get user statistics
+   */
+  async getUserStatistics(userId: number) {
+    const [
+      postsCount,
+      commentsCount,
+      bookmarksCount,
+      tutorialsCompleted,
+      problemsSolved,
+    ] = await Promise.all([
+      // Posts written
+      this.prisma.post.count({
+        where: {
+          authorId: userId,
+          published: true,
+        },
+      }),
+      // Comments made
+      this.prisma.comment.count({
+        where: {
+          userId,
+          approved: true,
+        },
+      }),
+      // Bookmarks
+      this.prisma.bookmark.count({
+        where: { userId },
+      }),
+      // Tutorials completed
+      this.prisma.userProgress.count({
+        where: {
+          userId,
+          tutorialId: { not: null },
+          lessonId: null,
+          progressPercent: 100,
+        },
+      }),
+      // Problems solved
+      this.prisma.problemSubmission.findMany({
+        where: {
+          userId,
+          status: 'ACCEPTED',
+        },
+        select: {
+          problemId: true,
+        },
+        distinct: ['problemId'],
+      }).then((submissions) => submissions.length),
+    ]);
+
+    return {
+      posts: postsCount,
+      comments: commentsCount,
+      bookmarks: bookmarksCount,
+      tutorialsCompleted,
+      problemsSolved,
+    };
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Convert empty strings to null to avoid storing empty strings
+    // Only include fields that are actually provided (not undefined)
+    const dataToUpdate: any = {};
+    Object.keys(updateProfileDto).forEach((key) => {
+      const value = (updateProfileDto as any)[key];
+      // Only include if value is defined and not empty string
+      if (value !== undefined) {
+        dataToUpdate[key] = value === '' || value === null ? null : value;
+      }
+    });
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        bio: true,
+        avatar: true,
+        website: true,
+        github: true,
+        twitter: true,
+        linkedin: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: updated,
     };
   }
 

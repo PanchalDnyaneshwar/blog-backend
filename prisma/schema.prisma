@@ -24,14 +24,21 @@ model User {
   emailVerifyExpiry DateTime? @map("email_verify_expiry")
   resetToken        String?   @map("reset_token")
   resetTokenExpiry  DateTime? @map("reset_token_expiry")
+  bio               String?   @db.Text
+  avatar            String?
+  website           String?
+  github            String?
+  twitter           String?
+  linkedin          String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  posts         Post[]
-  comments      Comment[]
-  bookmarks     Bookmark[]
-  progress      UserProgress[]
-  readingHistory ReadingHistory[]
+  posts              Post[]
+  comments           Comment[]
+  bookmarks          Bookmark[]
+  progress           UserProgress[]
+  readingHistory     ReadingHistory[]
+  problemSubmissions ProblemSubmission[]
 
   @@map("users")
 }
@@ -113,8 +120,8 @@ model Post {
   updatedAt       DateTime  @updatedAt @map("updated_at")
   publishedAt     DateTime? @map("published_at")
 
-  category  Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  author    User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  author         User?            @relation(fields: [authorId], references: [id], onDelete: SetNull)
   tags           Tag[]
   comments       Comment[]
   bookmarks      Bookmark[]
@@ -252,19 +259,104 @@ model ReadingHistory {
 
 // Settings Model
 model Settings {
-  id                   Int      @id @default(autoincrement())
-  siteTitle            String   @default("Tech Blog") @map("site_title")
-  siteDescription      String?  @map("site_description")
-  siteUrl              String?  @map("site_url")
-  adminEmail           String?  @map("admin_email")
-  defaultMetaTitle     String?  @map("default_meta_title")
-  defaultMetaDescription String? @map("default_meta_description") @db.Text
-  twitterHandle        String?  @map("twitter_handle")
-  facebookPage         String?  @map("facebook_page")
-  githubUrl            String?  @map("github_url")
-  theme                String   @default("light")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  id                     Int      @id @default(autoincrement())
+  siteTitle              String   @default("Tech Blog") @map("site_title")
+  siteDescription        String?  @map("site_description")
+  siteUrl                String?  @map("site_url")
+  adminEmail             String?  @map("admin_email")
+  defaultMetaTitle       String?  @map("default_meta_title")
+  defaultMetaDescription String?  @map("default_meta_description") @db.Text
+  twitterHandle          String?  @map("twitter_handle")
+  facebookPage           String?  @map("facebook_page")
+  githubUrl              String?  @map("github_url")
+  theme                  String   @default("light")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+// Problem Model (for practice problems)
+model Problem {
+  id          Int        @id @default(autoincrement())
+  title       String
+  slug        String     @unique
+  description String     @db.Text
+  difficulty  Difficulty @default(BEGINNER)
+  category    String? // e.g., "arrays", "strings", "algorithms"
+  constraints String?    @db.Text // Problem constraints
+  examples    Json? // Array of example inputs/outputs
+  starterCode String?    @map("starter_code") @db.Text // Default starter code
+  solution    String?    @db.Text // Official solution (hidden from users)
+  hints       Json? // Array of hints
+  tags        String[]   @default([]) // Tags for filtering
+  published   Boolean    @default(false)
+  timeLimit   Int        @default(1000) @map("time_limit") // Time limit in milliseconds
+  memoryLimit Int        @default(256) @map("memory_limit") // Memory limit in MB
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  testCases   TestCase[]
+  submissions ProblemSubmission[]
+
+  @@index([slug])
+  @@index([difficulty])
+  @@index([category])
+  @@index([published])
+  @@map("problems")
+}
+
+// Test Case Model (for problem test cases)
+model TestCase {
+  id             Int      @id @default(autoincrement())
+  problemId      Int      @map("problem_id")
+  input          String   @db.Text // Input data
+  expectedOutput String   @map("expected_output") @db.Text // Expected output
+  isPublic       Boolean  @default(false) @map("is_public") // Whether visible to users
+  orderIndex     Int      @default(0) @map("order_index")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([problemId])
+  @@index([problemId, orderIndex])
+  @@map("test_cases")
+}
+
+// Problem Submission Model (user code submissions)
+model ProblemSubmission {
+  id            Int              @id @default(autoincrement())
+  userId        Int              @map("user_id")
+  problemId     Int              @map("problem_id")
+  code          String           @db.Text
+  language      String           @default("javascript") // javascript, python, java, etc.
+  status        SubmissionStatus @default(PENDING)
+  testResults   Json?            @map("test_results") // Results from test cases
+  executionTime Int?             @map("execution_time") // Execution time in ms
+  memoryUsed    Int?             @map("memory_used") // Memory used in MB
+  errorMessage  String?          @map("error_message") @db.Text
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([problemId])
+  @@index([status])
+  @@index([userId, problemId])
+  @@index([createdAt])
+  @@map("problem_submissions")
+}
+
+enum SubmissionStatus {
+  PENDING
+  RUNNING
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+  COMPILATION_ERROR
 }

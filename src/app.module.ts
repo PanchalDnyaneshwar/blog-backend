@@ -17,6 +17,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { MediaModule } from './media/media.module';
 import { EmailModule } from './email/email.module';
 import { TutorialsModule } from './tutorials/tutorials.module';
+import { ProblemsModule } from './problems/problems.module';
+import { ProgressModule } from './progress/progress.module';
+import { RecommendationsModule } from './recommendations/recommendations.module';
 import { AppController } from './app.controller';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
@@ -43,6 +46,9 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
         MediaModule,
         EmailModule,
         TutorialsModule,
+        ProblemsModule,
+        ProgressModule,
+        RecommendationsModule,
       ],
   controllers: [AppController],
   providers: [
