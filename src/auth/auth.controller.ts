@@ -56,13 +56,23 @@ export class AuthController {
   @UseGuards(LocalAuthGuard, RateLimitGuard)
   @RateLimit(10, 60) // 10 login attempts per minute
   async login(@Request() req: any, @Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.login(loginDto);
-    this.setRefreshTokenCookie(res, result.refresh_token);
-    return {
-      success: true,
-      access_token: result.access_token,
-      user: result.user,
-    };
+    try {
+      const result = await this.authService.login(loginDto);
+      this.setRefreshTokenCookie(res, result.refresh_token);
+      return {
+        success: true,
+        access_token: result.access_token,
+        user: result.user,
+      };
+    } catch (error: any) {
+      // Re-throw known exceptions (UnauthorizedException, etc.)
+      if (error instanceof UnauthorizedException || error.status === 401) {
+        throw error;
+      }
+      // Log unexpected errors
+      console.error('Login error:', error);
+      throw new UnauthorizedException('Login failed. Please try again.');
+    }
   }
 
   @Post('admin/login')

@@ -20,6 +20,10 @@ import { TutorialsModule } from './tutorials/tutorials.module';
 import { ProblemsModule } from './problems/problems.module';
 import { ProgressModule } from './progress/progress.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
+import { SearchModule } from './search/search.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { LikesModule } from './likes/likes.module';
+import { FollowsModule } from './follows/follows.module';
 import { AppController } from './app.controller';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
@@ -49,6 +53,10 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
         ProblemsModule,
         ProgressModule,
         RecommendationsModule,
+        SearchModule,
+        NotificationsModule,
+        LikesModule,
+        FollowsModule,
       ],
   controllers: [AppController],
   providers: [

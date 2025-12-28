@@ -35,32 +35,59 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    try {
+      const user = await this.validateUser(loginDto.email, loginDto.password);
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    return this.generateTokens(user);
+      return await this.generateTokens(user);
+    } catch (error: any) {
+      // Re-throw known exceptions
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      // Log and wrap unexpected errors
+      console.error('Login service error:', error);
+      throw new BadRequestException(`Login failed: ${error.message || 'Unknown error'}`);
+    }
   }
 
   private async generateTokens(user: any) {
+    // Validate JWT_SECRET is configured
+    const jwtSecret = this.configService.get('JWT_SECRET');
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is not configured. Please set JWT_SECRET in your .env file.');
+    }
+
     const payload = { email: user.email, sub: user.id, role: user.role };
     
     // Generate access token (short-lived: 15 minutes)
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '15m',
-    });
+    let accessToken: string;
+    try {
+      accessToken = this.jwtService.sign(payload, {
+        expiresIn: '15m',
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to generate access token: ${error.message}`);
+    }
 
     // Generate refresh token (long-lived: 7 days)
     const refreshToken = crypto.randomBytes(32).toString('hex');
     
-    // Store refresh token in Redis (7 days TTL)
+    // Store refresh token in Redis (7 days TTL) - gracefully handle Redis failures
     const refreshTokenKey = `refresh_token:${user.id}:${refreshToken}`;
-    await this.redis.set(refreshTokenKey, JSON.stringify({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    }), 7 * 24 * 60 * 60); // 7 days
+    try {
+      await this.redis.set(refreshTokenKey, JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      }), 7 * 24 * 60 * 60); // 7 days
+    } catch (error: any) {
+      // Log but don't fail login if Redis is unavailable
+      console.warn('Failed to store refresh token in Redis:', error.message);
+      // Continue without Redis - tokens will still work, just won't be stored
+    }
 
     return {
       access_token: accessToken,

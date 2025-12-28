@@ -36,9 +36,14 @@ model User {
   posts              Post[]
   comments           Comment[]
   bookmarks          Bookmark[]
+  postLikes          PostLike[]
+  commentLikes       CommentLike[]
   progress           UserProgress[]
   readingHistory     ReadingHistory[]
   problemSubmissions ProblemSubmission[]
+  notifications      Notification[]
+  followers          Follow[] @relation("UserFollowers")
+  following          Follow[] @relation("UserFollowing")
 
   @@map("users")
 }
@@ -125,6 +130,7 @@ model Post {
   tags           Tag[]
   comments       Comment[]
   bookmarks      Bookmark[]
+  likes          PostLike[]
   readingHistory ReadingHistory[]
 
   @@index([slug])
@@ -145,10 +151,11 @@ model Comment {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies Comment[] @relation("CommentReplies")
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[]     @relation("CommentReplies")
+  likes   CommentLike[]
 
   @@index([postId])
   @@index([userId])
@@ -170,6 +177,54 @@ model Bookmark {
   @@index([userId])
   @@index([postId])
   @@map("bookmarks")
+}
+
+// Post Like Model
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  postId    Int      @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("post_likes")
+}
+
+// Comment Like Model
+model CommentLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  commentId Int      @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([userId])
+  @@index([commentId])
+  @@map("comment_likes")
+}
+
+// Follow Model (User Following System)
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int      @map("follower_id")
+  followingId Int     @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
 }
 
 // User Progress Model (for tutorials/lessons)
@@ -359,4 +414,39 @@ enum SubmissionStatus {
   MEMORY_LIMIT_EXCEEDED
   RUNTIME_ERROR
   COMPILATION_ERROR
+}
+
+// Notification Model
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("user_id")
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  link      String? // URL to related content
+  read      Boolean          @default(false)
+  readAt    DateTime?        @map("read_at")
+  metadata  Json? // Additional data (e.g., postId, commentId, etc.)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  COMMENT_REPLY
+  COMMENT_MENTION
+  POST_PUBLISHED
+  POST_LIKED
+  TUTORIAL_COMPLETED
+  PROBLEM_SOLVED
+  SYSTEM_ANNOUNCEMENT
+  FOLLOW
+  BOOKMARK_UPDATE
 }

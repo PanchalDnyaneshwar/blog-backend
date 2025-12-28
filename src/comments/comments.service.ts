@@ -1,14 +1,19 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SanitizeService } from '../common/services/sanitize.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CommentsService {
+  private readonly logger = new Logger(CommentsService.name);
+
   constructor(
     private prisma: PrismaService,
     private sanitizeService: SanitizeService,
+    @Inject(forwardRef(() => NotificationsService))
+    private notificationsService: NotificationsService,
   ) {}
 
   async create(createCommentDto: CreateCommentDto, userId: number) {
@@ -39,8 +44,38 @@ export class CommentsService {
             slug: true,
           },
         },
+        parent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    // Create notification if this is a reply to another comment
+    if (createCommentDto.parentId && comment.parent) {
+      const parentComment = comment.parent;
+      // Don't notify if replying to own comment
+      if (parentComment.userId !== userId) {
+        try {
+          await this.notificationsService.createCommentReplyNotification(
+            parentComment.userId,
+            comment.id,
+            comment.post.slug,
+            comment.post.title,
+            comment.user.name,
+          );
+        } catch (error) {
+          // Log error but don't fail comment creation
+          this.logger.error(`Failed to create reply notification: ${error.message}`);
+        }
+      }
+    }
 
     return {
       success: true,
@@ -77,17 +112,33 @@ export class CommentsService {
                 email: true,
               },
             },
+            _count: {
+              select: {
+                likes: true,
+              },
+            },
           },
           orderBy: { createdAt: 'asc' },
+        },
+        _count: {
+          select: {
+            likes: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Filter to only show approved replies
+    // Filter to only show approved replies and add likeCount
     const filteredComments = comments.map((comment) => ({
       ...comment,
-      replies: comment.replies.filter((reply) => approved === undefined || reply.approved === approved),
+      likeCount: comment._count?.likes || 0,
+      replies: comment.replies
+        .filter((reply) => approved === undefined || reply.approved === approved)
+        .map((reply) => ({
+          ...reply,
+          likeCount: reply._count?.likes || 0,
+        })),
     }));
 
     return {
@@ -122,6 +173,16 @@ export class CommentsService {
                 email: true,
               },
             },
+            _count: {
+              select: {
+                likes: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
           },
         },
       },
@@ -131,9 +192,19 @@ export class CommentsService {
       throw new NotFoundException('Comment not found');
     }
 
+    // Add likeCount to comment and replies
+    const commentWithLikes = {
+      ...comment,
+      likeCount: comment._count?.likes || 0,
+      replies: comment.replies?.map((reply) => ({
+        ...reply,
+        likeCount: reply._count?.likes || 0,
+      })) || [],
+    };
+
     return {
       success: true,
-      data: comment,
+      data: commentWithLikes,
     };
   }
 

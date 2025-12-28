@@ -72,14 +72,25 @@ export class BlogService {
               email: true,
             },
           },
+          _count: {
+            select: {
+              likes: true,
+            },
+          },
         },
       }),
       this.prisma.post.count({ where }),
     ]);
 
+    // Map posts to include likeCount from _count
+    const postsWithLikes = posts.map((post: any) => ({
+      ...post,
+      likeCount: post._count?.likes || 0,
+    }));
+
     const result = {
       success: true,
-      data: posts,
+      data: postsWithLikes,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -116,6 +127,11 @@ export class BlogService {
             email: true,
           },
         },
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
       },
     });
 
@@ -131,7 +147,11 @@ export class BlogService {
 
     const result = {
       success: true,
-      data: { ...post, views: post.views + 1 },
+      data: { 
+        ...post, 
+        views: post.views + 1,
+        likeCount: post._count?.likes || 0,
+      },
     };
 
     // Cache for 1 hour
