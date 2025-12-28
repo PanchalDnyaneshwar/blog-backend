@@ -210,6 +210,124 @@ export class RecommendationsService {
   }
 
   /**
+   * Get popular posts for unauthenticated users
+   */
+  async getPopularPosts(limit: number = 10) {
+    try {
+      const validLimit = Math.min(Math.max(limit, 1), 20);
+      const cacheKey = `recommendations:popular-posts:${validLimit}`;
+      
+      // Try cache first
+      try {
+        const cached = await this.redis.getJSON<any>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      } catch (cacheError) {
+        this.logger.warn('Cache read failed, continuing without cache');
+      }
+
+      const posts = await this.prisma.post.findMany({
+        where: {
+          published: true,
+        },
+        take: validLimit,
+        include: {
+          category: true,
+          tags: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: [
+          { views: 'desc' },
+          { publishedAt: 'desc' },
+        ],
+      });
+
+      const result = {
+        success: true,
+        data: posts,
+      };
+
+      // Cache for 30 minutes
+      try {
+        await this.redis.setJSON(cacheKey, result, 1800);
+      } catch (cacheError) {
+        this.logger.warn('Cache write failed, continuing without cache');
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Error getting popular posts', error);
+      return {
+        success: true,
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * Get popular tutorials for unauthenticated users
+   */
+  async getPopularTutorials(limit: number = 5) {
+    try {
+      const validLimit = Math.min(Math.max(limit, 1), 10);
+      const cacheKey = `recommendations:popular-tutorials:${validLimit}`;
+      
+      // Try cache first
+      try {
+        const cached = await this.redis.getJSON<any>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      } catch (cacheError) {
+        this.logger.warn('Cache read failed, continuing without cache');
+      }
+
+      const tutorials = await this.prisma.tutorial.findMany({
+        where: {
+          published: true,
+        },
+        take: validLimit,
+        include: {
+          lessons: {
+            select: {
+              id: true,
+            },
+          },
+        },
+        orderBy: [
+          { createdAt: 'desc' },
+        ],
+      });
+
+      const result = {
+        success: true,
+        data: tutorials,
+      };
+
+      // Cache for 30 minutes
+      try {
+        await this.redis.setJSON(cacheKey, result, 1800);
+      } catch (cacheError) {
+        this.logger.warn('Cache write failed, continuing without cache');
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Error getting popular tutorials', error);
+      return {
+        success: true,
+        data: [],
+      };
+    }
+  }
+
+  /**
    * Get "Next to read" suggestions based on current reading progress
    */
   async getNextToRead(userId: number, limit: number = 5) {

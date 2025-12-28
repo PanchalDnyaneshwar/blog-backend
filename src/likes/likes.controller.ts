@@ -54,14 +54,15 @@ export class LikesController {
     @Param('postId', ParseIntPipe) postId: number,
     @Request() req: any,
     @Query('users') includeUsers?: string,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+    @Query('limit') limit?: string,
   ) {
     try {
       // Extract userId if user is authenticated (optional for this endpoint)
       const userId = req.user?.userId || req.user?.id || undefined;
       
       if (includeUsers === 'true') {
-        return await this.likesService.getPostLikesUsers(postId, limit || 10);
+        const limitNum = limit ? Math.min(Math.max(parseInt(limit, 10), 1), 50) : 10;
+        return await this.likesService.getPostLikesUsers(postId, limitNum);
       }
       
       return await this.likesService.getPostLikes(postId, userId);

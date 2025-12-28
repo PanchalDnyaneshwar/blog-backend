@@ -8,7 +8,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { RecommendationsService } from './recommendations.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
 
 @Controller('recommendations')
@@ -17,22 +17,25 @@ export class RecommendationsController {
   constructor(private readonly recommendationsService: RecommendationsService) {}
 
   @Get('content-based')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @RateLimit(50, 60)
   async getContentBasedRecommendations(
     @Request() req: any,
     @Query('limit') limit?: string,
   ) {
     try {
-      const userId = req.user.userId || req.user.id;
-      if (!userId) {
-        return {
-          success: true,
-          data: [],
-        };
-      }
+      // Make authentication optional - if user is authenticated, get personalized recommendations
+      // Otherwise, return popular posts
+      const userId = req.user?.userId || req.user?.id;
       const limitNum = limit ? Math.min(Math.max(parseInt(limit, 10), 1), 20) : 10;
-      return await this.recommendationsService.getContentBasedRecommendations(userId, limitNum);
+      
+      if (userId) {
+        // User is authenticated - return personalized recommendations
+        return await this.recommendationsService.getContentBasedRecommendations(userId, limitNum);
+      } else {
+        // User is not authenticated - return popular posts
+        return await this.recommendationsService.getPopularPosts(limitNum);
+      }
     } catch (error) {
       return {
         success: true,
@@ -42,14 +45,16 @@ export class RecommendationsController {
   }
 
   @Get('next-to-read')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @RateLimit(50, 60)
   async getNextToRead(
     @Request() req: any,
     @Query('limit') limit?: string,
   ) {
     try {
-      const userId = req.user.userId || req.user.id;
+      // Make authentication optional - if user is authenticated, get next to read
+      // Otherwise, return empty array
+      const userId = req.user?.userId || req.user?.id;
       if (!userId) {
         return {
           success: true,
@@ -84,22 +89,25 @@ export class RecommendationsController {
   }
 
   @Get('tutorials')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @RateLimit(50, 60)
   async getTutorialRecommendations(
     @Request() req: any,
     @Query('limit') limit?: string,
   ) {
     try {
-      const userId = req.user.userId || req.user.id;
-      if (!userId) {
-        return {
-          success: true,
-          data: [],
-        };
-      }
+      // Make authentication optional - if user is authenticated, get personalized tutorials
+      // Otherwise, return popular tutorials
+      const userId = req.user?.userId || req.user?.id;
       const limitNum = limit ? Math.min(Math.max(parseInt(limit, 10), 1), 10) : 5;
-      return await this.recommendationsService.getTutorialRecommendations(userId, limitNum);
+      
+      if (userId) {
+        // User is authenticated - return personalized recommendations
+        return await this.recommendationsService.getTutorialRecommendations(userId, limitNum);
+      } else {
+        // User is not authenticated - return popular tutorials
+        return await this.recommendationsService.getPopularTutorials(limitNum);
+      }
     } catch (error) {
       return {
         success: true,
