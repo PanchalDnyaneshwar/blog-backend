@@ -63,9 +63,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`🚀 Server running on http://localhost:${port}/api`);
-  console.log(`📁 Media files served from http://localhost:${port}/uploads/media`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Server running on http://0.0.0.0:${port}/api`);
+  console.log(`📁 Media files served from http://0.0.0.0:${port}/uploads/media`);
 }
 bootstrap();
 
