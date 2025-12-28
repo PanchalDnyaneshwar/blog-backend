@@ -24,6 +24,7 @@ import { SearchModule } from './search/search.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LikesModule } from './likes/likes.module';
 import { FollowsModule } from './follows/follows.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
 import { AppController } from './app.controller';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
@@ -57,6 +58,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
         NotificationsModule,
         LikesModule,
         FollowsModule,
+        NewsletterModule,
       ],
   controllers: [AppController],
   providers: [

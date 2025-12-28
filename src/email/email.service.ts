@@ -12,8 +12,8 @@ export class EmailService {
   private readonly siteUrl: string;
 
   constructor(private configService: ConfigService) {
-    this.fromEmail = this.configService.get('EMAIL_FROM', 'noreply@blogplatform.com');
-    this.fromName = this.configService.get('EMAIL_FROM_NAME', 'Blog Platform');
+    this.fromEmail = this.configService.get('EMAIL_FROM', 'noreply@codecraft.online');
+    this.fromName = this.configService.get('EMAIL_FROM_NAME', 'CodeCraft');
     this.siteUrl = this.configService.get('FRONTEND_URL', 'http://localhost:3000');
 
     this.initializeTransporter();
@@ -147,7 +147,7 @@ export class EmailService {
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0;">Welcome to Blog Platform!</h1>
+            <h1 style="color: white; margin: 0;">Welcome to CodeCraft!</h1>
           </div>
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
             <p>Hi ${name},</p>
@@ -192,6 +192,49 @@ export class EmailService {
             <p style="word-break: break-all; color: #667eea;">${resetUrl}</p>
             <p style="margin-top: 30px; font-size: 12px; color: #666;">
               This link will expire in 1 hour. If you didn't request a password reset, please ignore this email and your password will remain unchanged.
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  async sendNewsletterWelcomeEmail(email: string, name?: string): Promise<boolean> {
+    const html = this.getNewsletterWelcomeTemplate(name || 'there');
+    const subject = 'Welcome to CodeCraft Newsletter!';
+
+    return this.sendEmail({
+      to: email,
+      subject,
+      html,
+    });
+  }
+
+  private getNewsletterWelcomeTemplate(name: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0;">Welcome to CodeCraft!</h1>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p>Hi ${name},</p>
+            <p>Thank you for subscribing to the CodeCraft newsletter! 🎉</p>
+            <p>You'll now receive:</p>
+            <ul style="margin: 20px 0; padding-left: 20px;">
+              <li>Latest articles and tutorials</li>
+              <li>Programming tips and tricks</li>
+              <li>DSA problem solutions</li>
+              <li>Exclusive content and updates</li>
+            </ul>
+            <p>We're excited to have you as part of our community!</p>
+            <p style="margin-top: 30px; font-size: 12px; color: #666;">
+              If you didn't subscribe, please ignore this email.
             </p>
           </div>
         </body>
